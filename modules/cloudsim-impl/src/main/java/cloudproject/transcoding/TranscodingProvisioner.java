@@ -110,8 +110,8 @@ public class TranscodingProvisioner {
 		int testCount;
 	    
 		vmCompletionTimeMap.putAll(tb.totalCompletionTime_vmMap);
-		startupQueueList.addAll(tb.cloudletNewList);
-		batchQueueList.addAll(tb.cloudletList);
+		//startupQueueList.addAll(tb.cloudletNewList);
+		//batchQueueList.addAll(tb.cloudletList);
 	    
 		while(timePeriod < frequency){
 			/**

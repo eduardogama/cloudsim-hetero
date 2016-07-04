@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map.Entry;
 
 public class CreateGopData {
 	private String transcodedTo;
@@ -96,7 +97,9 @@ public class CreateGopData {
 	public void ParseCloudlet(File videoDataFile){
 		
         /**
-         * Combine different instance's transcoding time into a map <instance type, transcoding time>
+         * Combine different instance's transcoding time into a map <instance type, transcoding time> 
+         * GopLengthMapList: ec2type: mips * transcoding time
+         * Returns list of ec2type => total mips
          */
         
 		//File videoDataFile = new File(cloudletUrl);
@@ -112,6 +115,7 @@ public class CreateGopData {
 		        boolean flag = true;
 		        int index = 1;
 		        long gopLength = 0;
+		        System.out.println(videoDataFile.getName());
 		        
 		        if (videoDataFile.isFile() && videoDataFile.getName().endsWith(".txt")){
 			        while ((sCurrentLine = br.readLine()) != null) {
@@ -128,6 +132,7 @@ public class CreateGopData {
 	 	            				
 		 	            			setTranscodedTo(arr[0]);
 		 	            			addToGopLengthMapList(arr[1], Long.parseLong(arr[3]));
+		 	            			//System.out.println(arr[1] + " added " + Long.parseLong(arr[3]));
 		 	            			addToGopIdList(Integer.parseInt(arr[2]));
 		 	            			addToGopPtsList(Integer.parseInt(arr[4]));
 		 	            			addToGopInputSizeList(Integer.parseInt(arr[5]));
@@ -136,14 +141,22 @@ public class CreateGopData {
 	 	            			}else{
 	 	            				MapInstanceToGopLength mitl = new MapInstanceToGopLength();
 	 	            				gopLength = mitl.getGopLength(arr[1], Long.parseLong(arr[3]));
-	 	            				
-		 	            			getGopengthMapList().get(index).put(arr[1], gopLength);
+	 	            				//System.out.println(arr[1] + " adding " + gopLength);
+		 	            			getGopengthMapList().get(index).put(arr [1], gopLength);
 		 	            			index++;
 	 	            			}
 	 	            		}
 			            }
 			        }
 		        }
+		        /*
+		        System.out.println(this.gopTranscodingTimeMapList);
+		        for (HashMap<String, Long> map : gopTranscodingTimeMapList) {
+		            for (Entry<String, Long> entry : map.entrySet())
+		            	System.out.println(entry.getKey() + " => " + entry.getValue()  );
+		        }
+		        */
+		        
 		 } catch (IOException e) {
 		        e.printStackTrace();
 		 } finally {

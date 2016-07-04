@@ -1,6 +1,7 @@
 package cloudproject.transcoding;
 
-public class MapInstanceToGopLength {
+public class MapInstanceToGopLength
+ {
 	
 	private long gopLength;
 	
@@ -11,6 +12,8 @@ public class MapInstanceToGopLength {
 	public Long getGopLength(String ec2Type, Long transcodingTime){
 		
 		//Based on the EC2 types, the MIPS are different, map different GOP length based on intances' MIPs
+		//Shouldn't it be divided to get total (Million) instructions to be executed??!!
+		
 		if(ec2Type.equalsIgnoreCase("c4.xlarge")){ 
 	    	gopLength = transcodingTime * 8000;
 		}else if (ec2Type.equalsIgnoreCase("r3.xlarge")){

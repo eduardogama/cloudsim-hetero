@@ -61,19 +61,20 @@ public class VideoStreams implements Callable<String>{
 	    this.startupqueue = startupqueue;
 	    this.userId = userId;
 	    this.videoId = videoId;
-	    this.cloudlets = cloudlets;
+	    //this.cloudlets = cloudlets;
 	    this.seedShift = seedShift;
 	    this.estimatedGopLength = estimatedGopLength;
 	}
 
     public String call() {
+    	// Called when constructor is called?? 
     	// do stuff and return some String
          //currentTime = System.nanoTime()/(double)1000000;
     	
-         //System.out.println(Thread.currentThread().getName()+" Start. Video Stream_"+ command);
+         System.out.println("\nVideoStreams.java " + Thread.currentThread().getName()+" Start. Video Stream_"+ command);
 
          processCommand();
-        // System.out.println(Thread.currentThread().getName()+" End.");         
+         System.out.println("\nVideoStreams.java " + Thread.currentThread().getName()+" End.");         
             
          return Thread.currentThread().getName();
      }
@@ -83,7 +84,7 @@ public class VideoStreams implements Callable<String>{
      }
     
      private void processCommand() {
-    	 //Read the files in the datafile folder	
+    	//Read the files in the datafile folder	
 		//File folder = new File("/Users/lxb200709/Documents/TransCloud/cloudsim/modules/cloudsim-impl/resources/inputdatafile"); 
 		File folder = new File(inputdataFolderURL);
 
@@ -95,6 +96,9 @@ public class VideoStreams implements Callable<String>{
 		Random random = new Random(fileCount + seedShift*100);
 		
 		int fileIndex = random.nextInt(1000)%listOfFiles.length;
+		System.out.println(fileIndex);
+		System.out.println(listOfFiles.length);
+		//System.out.println(listOfFiles);
 		
 		if(fileIndex < listOfFiles.length){
 			File file = listOfFiles[fileIndex];
@@ -115,9 +119,9 @@ public class VideoStreams implements Callable<String>{
 		    
 		   
 			// cloudletList.clear();
-			 System.out.println("\n**************************Video Stream_"+ command + "  " + file.getName() + " just arrived**************************\n"); 
+			 System.out.println("\nVideoStreams.java **************************Video Stream_"+ command + "  " + file.getName() + " just arrived**************************\n"); 
 
-			 System.out.println(Thread.currentThread().getName() +" Video Stream_"+ command + ": Created " + cloudletList.size() + " Cloudlets\n"); 
+			 System.out.println("\nVideoStreams.java " + Thread.currentThread().getName() +" Video Stream_"+ command + ": Created " + cloudletList.size() + " Cloudlets\n"); 
 				// cloudletBatchQueue.addAll(cloudletList);
 			 ArrayList<Integer> newcloudlets = new ArrayList<Integer> ();
          
@@ -161,7 +165,7 @@ public class VideoStreams implements Callable<String>{
 				     }
 
 				    
-			    	 System.out.println(Thread.currentThread().getName() + "*****New arrival queue Video ID_" + videoId + ": " + cloudletNewList + " **********");
+			    	 System.out.println(Thread.currentThread().getName() + "VideoStreams.java *****New arrival queue Video ID_" + videoId + ": " + cloudletNewList + " **********");
 				// }
 			   }
 			 
@@ -203,8 +207,9 @@ public class VideoStreams implements Callable<String>{
 
  		for(int i=0;i<cloudletNum;i++){
  		
- 			 		    
+ 			//get length map for this cloudlet 		    
  		    cloudletLengthMap.putAll(gopData.getGopengthMapList().get(i));
+ 		    System.out.println(gopData.getGopengthMapList().get(i));
  			deadline = gopData.getGopPtsList().get(i);
  			fileSize = gopData.getGopInputSizeList().get(i);
  			outputSize = gopData.getGopOutputSizeList().get(i);
@@ -245,7 +250,7 @@ public class VideoStreams implements Callable<String>{
 			double max_c = 0.0;
 			
 			
-			
+			//Calculate min time, max time, min cost and max cost
             for(String vmType: cloudletLengthMap.keySet()){
 
 				InstanceType it = new InstanceType(vmType);			
@@ -272,11 +277,7 @@ public class VideoStreams implements Callable<String>{
 			    
 			}
             
-            /*
-            
-            if(CloudSim.clock() > 447161){
-            	System.out.println("test");
-            }*/
+
 			
 			for(String vmType: cloudletLengthMap.keySet()){
 				
@@ -309,7 +310,7 @@ public class VideoStreams implements Callable<String>{
 			System.out.println("*****************************************This GOP's type is: " + gopType);
 
 			
-			//System.out.println(utilityNum);
+			System.out.println(i + "   " + orderNum);
 			
  		    cloudlet[i] = new VideoSegment(i, utilityNum, orderNum, videoId, length, cloudletLengthMap, arrivalTime, deadlineBeforePlay, deadlineAfterPlay, pesNumber, fileSize, outputSize, gopTypeMap, utilizationModel, utilizationModel, utilizationModel);
  			

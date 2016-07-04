@@ -4,15 +4,16 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -51,6 +52,8 @@ import org.cloudbus.cloudsim.provisioners.RamProvisionerSimple;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 
+import com.opencsv.CSVReader;
+import java.text.*;
 
 
 
@@ -117,9 +120,13 @@ public class TranscodingMain {
 	
 	
 	//All the instance share cloudletNewArrivalQueue and cloudletBatchqueue, both of them are synchronized list
-	private static List<VideoSegment> cloudletNewArrivalQueue = Collections.synchronizedList(new ArrayList<VideoSegment>());
-	private static List<VideoSegment> cloudletBatchQueue = Collections.synchronizedList(new ArrayList<VideoSegment>());
-    public static Properties prop = new Properties();
+	//private static List<Binary> cloudletNewArrivalQueue = Collections.synchronizedList(new ArrayList<Binary>());
+	//private static List<Binary> cloudletBatchQueue = Collections.synchronizedList(new ArrayList<Binary>());
+
+	private static List<Binary> cloudletNewArrivalQueue = Collections.synchronizedList(new ArrayList<Binary>());
+	private static List<Binary> cloudletBatchQueue = Collections.synchronizedList(new ArrayList<Binary>());
+
+	public static Properties prop = new Properties();
 	
 	public TranscodingMain(){
 		
@@ -140,19 +147,19 @@ public class TranscodingMain {
     Log.printLine("Seting up configuration property file...\n");	
     
    String[] arg = {"-property", "/home/yamini/Documents/resources/properties/config.properties", 
-            "-input", "/home/yamini/Documents/resources/inputdata_het",
-            //"-input", "/Users/lxb200709/Documents/TransCloud/jarfiles/inputdata",
+            //"-input", "/home/yamini/Documents/resources/inputdata_het",
+		    "-input", "/home/yamini/Documents/resources/test.csv",
             "-output", "/home/yamini/Documents/resources/outputdata/test.txt", 
             "-gopdelayoutput", "/home/yamini/Documents/resources/outputdata/gop.txt",
             //"-sortalgorithm", "SJF",
-            "-schedulingmethod", "MSDUT",
+            "-schedulingmethod", "MM",
            // "-startupqueue",
             //"-dropflag",
             "-stqprediction",
             "-videonum", "10",
             "-vmqueue", "1",
-            "-vmNum", "0",  
-            "-clusterType", "homogeneous",
+            "-vmNum", "2",  
+            "-clusterType", "heterogeneous",
             "-vmType", "g2.2xlarge",
             "-vmfrequency", "10000",
             "-goplength", "AVERAGE",
@@ -218,7 +225,7 @@ public class TranscodingMain {
 
 	try {
 
-		//output = new FileOutputStream("/Users/lxb200709/Documents/TransCloud/cloudsim/modules/cloudTranscodingApp/config.properties");
+
 		output = new FileOutputStream(propertiesFileURL);
 		/**
 		 * Configuration properties for datacenter 
@@ -337,8 +344,9 @@ public class TranscodingMain {
 		 * configuration properties in Cooridnator
 		 */
 		//video job number, value i means i videos
-		//File folder = new File("/Users/lxb200709/Documents/TransCloud/cloudsim/modules/cloudsim-impl/resources/inputdatafile"); 
+		
 		File folder = new File(inputdataFolderURL);
+		/*
         File[] listOfFiles = folder.listFiles();
         int jobCount = 0;
         
@@ -349,8 +357,8 @@ public class TranscodingMain {
         	}
         	
         }
-      //  int jobNum = listOfFiles.length;
-		
+      
+		//Calculating number of jobs, jobNum overrides number of files in the folder
         if(jobNum != 0){
 		   prop.setProperty("periodEventNum", String.valueOf(jobNum));
 		   System.out.println("**There are " + jobNum + " videos...");
@@ -361,8 +369,13 @@ public class TranscodingMain {
 
         }
         
-        
-		//check vm provision frequence
+        */
+		
+		prop.setProperty("periodEventNum", "2");
+		System.out.println("**There are  2 videos...");
+		//FIXME!
+		
+		//check vm provision frequency for renting/destroying vms
         if(frequency ==0 ){
 		   prop.setProperty("periodicDelay", "1000");	
 		   System.out.println("**Vm checking frequency is: 1000ms");
@@ -374,6 +387,7 @@ public class TranscodingMain {
         }
         
         //configure test time period
+        //Not sure what this is doing!!
         
         if(testPeriod == 0.0){
         	prop.setProperty("testPeriod", "1200000");
@@ -392,6 +406,7 @@ public class TranscodingMain {
 		 * configuration properties in broker and datacenter's VM local queue size
 		 */
 		
+		//Local queue size
 		if(waitinglist_max == 0){
 		    prop.setProperty("waitinglist_max", "2");
 			System.out.println("**Vm local waiting queue size is: 2");
@@ -403,6 +418,7 @@ public class TranscodingMain {
 
 		/**
 		 * configuration properties for transcoding provisioning 
+		 * Not sure if this is useful for me!!
 		 */
 		if(upthredshold == 0){
 		    prop.setProperty("DEADLINE_MISS_RATE_UPTH", "0.1");
@@ -445,8 +461,7 @@ public class TranscodingMain {
 	}
 	
 	try {
-		// First step: Initialize the CloudSim package. It should be called
-		// before creating any entities.
+		// First step: Initialize the CloudSim package. It should be called before creating any entities.
 		int num_user = 1;   // number of grid users
 		Calendar calendar = Calendar.getInstance();
 		boolean trace_flag = false;  // mean trace events
@@ -478,12 +493,14 @@ public class TranscodingMain {
 		double startTranscodingTime = System.currentTimeMillis();
 		// Fifth step: Starts the simulation
 		
+		System.out.println("**Starting Simulation...");
+		
 		CloudSim.startSimulation();
 		
 		totalTranscodingTime = (System.currentTimeMillis() - startTranscodingTime)/1000;
 		
 		// Final step: Print results when simulation is over
-		List<VideoSegment> newList = coordinator.getBroker().getCloudletSubmittedList();
+		List<Binary> newList = coordinator.getBroker().getCloudletSubmittedList();
 				
 		Map<Integer, Double> videoStartupTimeMap = coordinator.getBroker().getVideoStartupTimeMap();
 		
@@ -492,9 +509,10 @@ public class TranscodingMain {
 		
 		calculateTotalCost(storageCost, vmCost);	
 		
-		printVideoStatistic(videoStartupTimeMap, newList);
-				
-		printCloudletList(newList);
+		
+		//Think of better functions here
+		//printVideoStatistic(videoStartupTimeMap, newList);				
+		//printCloudletList(newList);
 		
 		
 		CloudSim.stopSimulation();
@@ -523,23 +541,6 @@ public class TranscodingMain {
 
 		//Creates a container to store VMs. This list is passed to the broker later
 		LinkedList<TranscodingVm> list = new LinkedList<TranscodingVm>();
-
-		//VM Parameters
-		/*long size = 20000; //image size (MB)
-		int ram = 1024; //vm memory (MB)
-		int mips = 8000;
-		long bw = 1000;
-		int pesNumber = 1; //number of cpus
-		String vmm = "Xeon"; //VMM name
-*/		
-		
-		
-		/*String sizeStr = prop.getProperty("vmSize", "30720");
-		String ramStr = prop.getProperty("vmRam", "1024");
-		String mipsStr = prop.getProperty("vmMips", "8000");
-		String bwStr = prop.getProperty("vmBw", "1000");
-		String pesNumberStr = prop.getProperty("vmPesNumber", "1");
-		String vmm = prop.getProperty("vmName", "Xeon");*/
 		
 		InstanceType it = new InstanceType(vmType);
 		
@@ -553,16 +554,12 @@ public class TranscodingMain {
 		double periodicUtilizationRate = 0.0;
 		
 		
-		//memCost += characteristics.getCostPerMem()*ram;
-		
-		//Whenver ther is a Vm created, add storage cost.
-		//storageCost += characteristics.getCostPerStorage()*size/1024;
 
 		//create VMs
 		TranscodingVm[] vm = new TranscodingVm[vms];
 
 		for(int i=0;i<vms;i++){
-			//vm[i] = new Vm(i, userId, mips, pesNumber, ram, bw, size, vmm, new CloudletSchedulerTimeShared());
+
 			//for creating a VM with a space shared scheduling policy for cloudlets:
 			
 			//always run vm#0
@@ -583,22 +580,20 @@ public class TranscodingMain {
 		return list;
 	}
     
-	private static double getBwCost(List<VideoSegment> list){
-		for(VideoSegment cl:list){
+	private static double getBwCost(List<Binary> list){
+		for(Binary cl:list){
 			bwCost += cl.getProcessingCost();
 		}
 		return bwCost;
 	}
 	
-	private static double getStorageCost(List<VideoSegment> list){
+	private static double getStorageCost(List<Binary> list){
 		double byteConvertToGb = 1024*1024*1024;
 		double storageSize =0;
-		for(VideoSegment cl:list){
+		for(Binary cl:list){
 			storageSize += cl.getCloudletFileSize();
 			storageSize += cl.getCloudletOutputSize();
-			
-			/*storageCost += cl.getCloudletFileSize()/byteConvertToGb*characteristics.getCostPerStorage();
-			storageCost += cl.getCloudletOutputSize()/byteConvertToGb*characteristics.getCostPerStorage();*/
+
 		}
 		System.out.println("The storage size is: " + new DecimalFormat("#0.00").format(storageSize));
 		storageCost = storageSize/byteConvertToGb*characteristics.getCostPerStorage();
@@ -801,30 +796,6 @@ public class TranscodingMain {
     			)
     		);
 		
-		//To create a host with a space-shared allocation policy for PEs to VMs:
-		//hostList.add(
-    	//		new Host(
-    	//			hostId,
-    	//			new CpuProvisionerSimple(peList1),
-    	//			new RamProvisionerSimple(ram),
-    	//			new BwProvisionerSimple(bw),
-    	//			storage,
-    	//			new VmSchedulerSpaceShared(peList1)
-    	//		)
-    	//	);
-
-		//To create a host with a oportunistic space-shared allocation policy for PEs to VMs:
-		//hostList.add(
-    	//		new Host(
-    	//			hostId,
-    	//			new CpuProvisionerSimple(peList1),
-    	//			new RamProvisionerSimple(ram),
-    	//			new BwProvisionerSimple(bw),
-    	//			storage,
-    	//			new VmSchedulerOportunisticSpaceShared(peList1)
-    	//		)
-    	//	);
-
 
 		// 5. Create a DatacenterCharacteristics object that stores the
 		//    properties of a data center: architecture, OS, list of
@@ -899,7 +870,8 @@ public class TranscodingMain {
 	 * @throws IOException 
 	 */
 	
-	private static void printVideoStatistic(Map<Integer, Double> videoStartupTimeMap, List<VideoSegment> list) throws IOException{
+	private static void printVideoStatistic(Map<Integer, Double> videoStartupTimeMap, List<Binary> list) throws IOException{
+		/*
 		System.out.println("\n");
 
 		double videoStartupTimeAverage=0;
@@ -909,7 +881,7 @@ public class TranscodingMain {
 		double totalUtilityGain = 0;
 		double utilityRate = 0.0;
 		
-		for(VideoSegment cl:list){
+		for(Binary cl:list){
 		    if(cl.getCloudletDeadline() > cl.getFinishTime()){
 		    	totalUtilityGain += cl.getUtilityNum();
 		    	deadlineMeetCount++;
@@ -919,7 +891,7 @@ public class TranscodingMain {
 		
 		utilityRate = totalUtilityGain/deadlineMeetCount;
 		
-		VideoSegment cloudlet;
+		Binary cloudlet;
 		Map<Integer, Integer> videoGopNumMap = new HashMap<Integer,Integer>();
 		Map<Integer, Integer> videoDeadlineMissNumMap = new HashMap<Integer, Integer>();
 		Map<Integer, Double> videoDeadlineMissRateMap = new HashMap<Integer, Double>();
@@ -928,7 +900,7 @@ public class TranscodingMain {
 		
 		int deadlineMissCount = 0;
 
-		for(VideoSegment cl:list){
+		for(Binary cl:list){
 			if(!videoDeadlineMissNumMap.containsKey(cl.getCloudletVideoId())){
 				
 				videoGopNumMap.put(cl.getCloudletVideoId(), 1);
@@ -954,7 +926,7 @@ public class TranscodingMain {
 			videoDeadlineMissRateMap.put(entry.getKey(), videoDeadlineMissRate);
 		}
 		
-		for(VideoSegment vsg:list){
+		for(Binary vsg:list){
 					
 			if(!videoBufferDelayMap.containsKey(vsg.getCloudletId())){
 				
@@ -1012,7 +984,7 @@ public class TranscodingMain {
 		double deadlineMissNum = 0;
 		double totalDeadlineMissRate;
 		
-		for(VideoSegment cl:list){
+		for(Binary cl:list){
 		    if(cl.getCloudletDeadline() < cl.getFinishTime()){
 		    	deadlineMissNum++;
 		    }
@@ -1022,9 +994,7 @@ public class TranscodingMain {
 		
 		if(startupqueue){
 		
-			/**
-			 * ouput with new arrival queuue 
-			 */
+	
 			if(vmNum == 0){
 				pw.printf("%-18s%-10s%-20s%-16s%-10s%-25s%-20s%-12s%-12s%-12s%-12s", "Startup Queue", "Scheduling", "Video Numbers", "VM Number ", "VQS", "Average Startup Time", "Deadline Miss Rate", "Total Cost", "UtilityGain", "DMR_UPTH", "DMR_LTH");
 				pw.println("\n");
@@ -1041,10 +1011,7 @@ public class TranscodingMain {
 			}
 		
 		}else{
-			
-			/**
-			 * ouput without new arrival queuue 
-			 */
+
 			
 			if(vmNum == 0){
 				pw.printf("%-18s%-10s%-20s%-16s%-10s%-25s%-20s%-12s%-12s%-12s%-12s", "Startup Queue", "Scheduling", "Video Numbers", "VM Number ", "VQS", "Average Startup Time", "Deadline Miss Rate", "Total Cost", "UtilityGain", "DMR_UPTH", "DMR_LTH");
@@ -1064,6 +1031,7 @@ public class TranscodingMain {
 		}
 		
 		pw.close();
+		*/
 	}
 
 	/**
@@ -1071,17 +1039,17 @@ public class TranscodingMain {
 	 * @param list  list of Cloudlets
 	 * @throws Exception 
 	 */
-	private static void printCloudletList(List<VideoSegment> list) throws Exception {
+	private static void printCloudletList(List<Binary> list) throws Exception {
 		int size = list.size();
-		VideoSegment cloudlet;
+		Binary cloudlet;
 		int deadlineMissCount = 0;	
 		double totalDeadlineMissRate;
 		
 		int deadlineMeetCount = 0;
 		double totalUtilityGain = 0;
 		double utilityRate = 0.0;
-		
-		for(VideoSegment cl:list){
+		/*
+		for(Binary cl:list){
 		    if(cl.getCloudletDeadline() < cl.getFinishTime()){
 		    	deadlineMissCount++;
 		    }else{
@@ -1090,7 +1058,7 @@ public class TranscodingMain {
 		    }
 		    
 		}
-		
+		*/
 		utilityRate = totalUtilityGain/deadlineMeetCount;
 		
 		/*System.out.println("\nThere are: " + list.size() + " cloudlets...");
@@ -1122,10 +1090,10 @@ public class TranscodingMain {
 		//DecimalFormat dft = new DecimalFormat("###.##");
 		DecimalFormat dft = new DecimalFormat("###");
 		for (int i = 0; i < size; i++) {
-			cloudlet = (VideoSegment) list.get(i);
+			cloudlet = (Binary) list.get(i);
 		//	Log.print(indent + cloudlet.getCloudletVideoId() + indent + indent + indent + cloudlet.getCloudletId() + indent + indent);
 			
-			if (cloudlet.getCloudletStatus() == VideoSegment.SUCCESS){
+			if (cloudlet.getCloudletStatus() == Binary.SUCCESS){
 				/*Log.print("SUCCESS");
 
 				Log.printLine( 
@@ -1137,9 +1105,9 @@ public class TranscodingMain {
 					    indent + indent + indent + indent + dft.format(cloudlet.getFinishTime()) +
 					    indent + indent + indent + indent + dft.format(cloudlet.getCloudletDeadline()));*/
 				
-	            System.out.format("%-18d%-18d%-18s%-18d%-18d%-18.2f%-18.2f%-18.2f%-18.2f%-18.2f", cloudlet.getCloudletVideoId(), cloudlet.getCloudletId(), "SUCCESS", 
-	            		cloudlet.getResourceId(), cloudlet.getVmId(), cloudlet.getArrivalTime(), cloudlet.getExecStartTime(), cloudlet.getActualCPUTime(),
-	            		cloudlet.getFinishTime(),cloudlet.getCloudletDeadline());
+	           // System.out.format("%-18d%-18d%-18s%-18d%-18d%-18.2f%-18.2f%-18.2f%-18.2f%-18.2f", cloudlet.getCloudletVideoId(), cloudlet.getCloudletId(), "SUCCESS", 
+	          //  		cloudlet.getResourceId(), cloudlet.getVmId(), cloudlet.getArrivalTime(), cloudlet.getExecStartTime(), cloudlet.getActualCPUTime(),
+	            //		cloudlet.getFinishTime(),cloudlet.getCloudletDeadline());
 
 			}
 		}
@@ -1183,17 +1151,16 @@ public class TranscodingMain {
 		private int periodCount = 0;
 		
 		//Max jobs we are about to create
-		//private final static int periodEventNum = 50;
 		private int periodEventNum;
 		
-	   // private final static int periodicDelay = 20000; //contains the delay to the next periodic event
+
 		
 		private int periodicDelay;
 	 //   public boolean generatePeriodicEvent = true; //true if new internal events have to be generated
 
 		
 		private List<TranscodingVm> vmList;
-		private List<VideoSegment> cloudletList;
+		private List<Binary> cloudletList;
 		private TranscodingBroker broker;
 		
 	    private int jobCount = 0;
@@ -1214,20 +1181,19 @@ public class TranscodingMain {
 		private boolean stqprediction = true;
 		private boolean startupqueue = true;
 		private boolean dropflag = true;
+		
+		private CSVReader reader;
+		private CSVReader lookahead;
+		//private String [] nextLine;
 
 
 		Map<TranscodingVm, Double> cpuUtilizationMap = new HashMap<TranscodingVm, Double>();
 		int cupUtilizationPeriodCount = 0;
 		
-		//private Properties prop = new Properties();
-		
-	
 
 		public Coordinator(String name) throws IOException {
 			super(name);
-			//this.prop = prop;
-			
-			//InputStream input = new FileInputStream("/Users/lxb200709/Documents/TransCloud/cloudsim/modules/cloudsim-impl/config.properties");
+
 			InputStream input = new FileInputStream(propertiesFileURL);
 			prop.load(input);
 			
@@ -1245,7 +1211,8 @@ public class TranscodingMain {
 			String dropflag;
 			String staticVmType;
 			String clusterType;
-
+			CSVReader reader;
+			
 			
 			
 			jobNum = prop.getProperty("periodEventNum");
@@ -1293,6 +1260,35 @@ public class TranscodingMain {
 			
 			estimatedGopLength = prop.getProperty("estimatedGopLength");
 			
+		     try {
+					this.reader = new CSVReader(new FileReader(inputdataFolderURL));
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			     try {
+					this.reader.readNext();//Parse the header
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} //Header
+			     
+			     
+			     
+			     try {
+						this.lookahead = new CSVReader(new FileReader(inputdataFolderURL));
+					} catch (FileNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				     try {
+						this.lookahead.readNext();//Parse the header
+						this.lookahead.readNext();//Parse the first record
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} //Header
+			
 		}
 
 		@Override
@@ -1303,6 +1299,7 @@ public class TranscodingMain {
 			    //create and submit intial vm list
 			    
 			    if(vmNum == 0){
+			    	Log.printLine("Creating dynamic VMs");
 			        setVmList(createVM(broker.getId(), "g2.2xlarge", 1, 0, Long.MAX_VALUE));
 			        broker.submitVmList(getVmList());
 
@@ -1318,24 +1315,7 @@ public class TranscodingMain {
 	                        
 			    			}
 			    		}else{
-				    		/*Random rand = new Random();
-				    		int randonNum = rand.nextInt(4) + 1;
-				    		
-				    		switch(randonNum){
-					    		case 1: setVmList(createVM(broker.getId(), "g2.2xlarge", 1, i, Long.MAX_VALUE));
-						                broker.submitVmList(getVmList());
-					    		        break;
-					    		case 2: setVmList(createVM(broker.getId(), "c4.xlarge", 1, i, Long.MAX_VALUE));
-				                        broker.submitVmList(getVmList());
-					    		        break;
-					    		case 3: setVmList(createVM(broker.getId(), "r3.xlarge", 1, i, Long.MAX_VALUE));
-		                                broker.submitVmList(getVmList());
-					    		        break;
-					    		default: setVmList(createVM(broker.getId(), "t2.small", 1, i, Long.MAX_VALUE));
-		                                 broker.submitVmList(getVmList());
-					    		        break;
-				    		
-				    		}*/
+			    			Log.printLine("Creating heterogeneous VMs");
 			    			for(int i=0; i<4; i++){
 
 					    		setVmList(createVM(broker.getId(), "g2.2xlarge", 1, i, Long.MAX_VALUE));
@@ -1480,9 +1460,10 @@ public class TranscodingMain {
 		
 		/**
 		 * Periodically process new jobs
+		 * @throws ParseException 
 		 */
 		
-		public void processNewJobs(){
+		public void processNewJobs() {
 				System.out.println(CloudSim.clock() + " : Creating a new job....");
 				
 				int brokerId = getBroker().getId();
@@ -1501,13 +1482,36 @@ public class TranscodingMain {
 				 
 		        CompletionService<String> taskCompletionService = new ExecutorCompletionService<String>(
 		                executorService);
-		 	        
+		        String [] nextLine;
+		        long timeInMillis = 0;
+		        
 		        try {
 		        	
 		        	ArrayList<Callable<String>> callables = new ArrayList<Callable<String>>();
 		            for (int i = 0; i < 1; i++) {
 		            	int cloudlets = (int)getRandomNumber(10, 50, random);
-		            	  callables.add(new VideoStreams("" + videoId, inputdataFolderURL, startupqueue, estimatedGopLength, seedShift, brokerId, videoId, cloudlets));
+		            	System.out.println("Creating a binary stream of cloudlets for " + videoId );
+		       	    
+		    	     try {
+		    			nextLine = reader.readNext();
+		    		} catch (IOException e) {
+		    			// TODO Auto-generated catch block
+		    			e.printStackTrace();
+		    			return;
+		    		} 
+		            	  //callables.add(new VideoStreams("" + videoId, inputdataFolderURL, startupqueue, estimatedGopLength, seedShift, brokerId, videoId, cloudlets));
+		    	     SimpleDateFormat df1 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+		    	     try{
+		    	    	 Date d = df1.parse(nextLine[0]);
+		    	    	 timeInMillis = d.getTime();
+		    	    	 System.out.println("Time in ms = "+timeInMillis);
+		    	     }
+		    	     catch(Exception e){
+		    	    	 System.out.println("Couldn't parse, chnage code!!!");
+		    	     }
+		            	  callables.add(new BinaryStream("" + videoId, inputdataFolderURL, startupqueue, estimatedGopLength, seedShift, brokerId, videoId, cloudlets, nextLine));
+		            	  //Don't know what this is doing or where there is called
+		            	  System.out.println(videoId + inputdataFolderURL + startupqueue + estimatedGopLength + seedShift+ brokerId + videoId + cloudlets);
 			           // Thread.sleep(1000);
 		                videoId++;
 		            }
@@ -1537,89 +1541,64 @@ public class TranscodingMain {
 		        }
 		        executorService.shutdown();
 		      
-			    VideoStreams vt = new VideoStreams();
+			    //VideoStreams vt = new VideoStreams();
+		        BinaryStream vt = new BinaryStream();
 			    cloudletBatchQueue = vt.getBatchQueue();
 			    cloudletNewArrivalQueue = vt.getNewArrivalQueue();
+			    System.out.println("Size of new arrival queue " + cloudletNewArrivalQueue.size());
 			
 			    //update the cloudlet list and back to simulation
 			    broker.submitCloudletList(cloudletBatchQueue, cloudletNewArrivalQueue);
-			    
 
 			    
-			  //  broker.submitVmList(getVmList());
-			    			    
-			    /**
-			     * check startup queue length to provision vm
-			     */
-			   /*if(vmNum == 0 && stqprediction){ // only for dynamci cloud resources
-			    	List<Integer> videoIdList = new ArrayList<Integer>();
-	                int videoNum = 0;
-	                int vmToBeCreated = 0;
-	                double val = 0.0;
-				    for(Cloudlet cl:broker.getCloudletNewList()){
-				    	VideoSegment vs = (VideoSegment)cl;
-				    	if(!videoIdList.contains(vs.getCloudletVideoId())){
-			    			videoNum ++;
-			    			videoIdList.add(vs.getCloudletVideoId());
-			    			
-			    		}else{
-			    			continue;
-			    		} 		
-				    }
-				    
-				    val =(videoNum-1)/(DEADLINE_MISS_RATE_UPTH*10);
-				    
-				    vmToBeCreated = (int)val;
-				    
-				    provisionVM(vmToBeCreated, null);
-			   }*/
-			    
-			    /**
-			     * check the new video number in the highprioritylist
-			     */
-			    if(vmNum == 0 && stqprediction){
-			    	List<Integer> videoIdList = new ArrayList<Integer>();
-	                int newVideoNum = 0;
-	                int vmToBeCreated = 0;
-	                double val = 0.0;
-				    for(VideoSegment vs:broker.getHighestPriorityCloudletList()){		    	
-				    	if(vs.getCloudletId() == 0){
-				    		newVideoNum ++;
-			    		}		
-				    }
-				    
-				    val =(newVideoNum-1)/(DEADLINE_MISS_RATE_UPTH*10);
-				    if(val > 0){
-					    vmToBeCreated = (int)val;
-					    
-					    System.out.println("\n******There are " + newVideoNum +" new videos are in the priority queue, creating " + vmToBeCreated + "c4.xlarge...\n");
-					    provisionVM(vmToBeCreated, null);
-				    }
-			     }
-			    
+
 			 
 			    broker.submitCloudlets();
+			     
+			//Check if there are more jobs to process
+			//Add Delay before other files are processed
 			    
-			    
-			    //Check if there are more jobs to process
 		    if (broker.generatePeriodicEvent){
-
+		    	System.out.println("Checking where this is called");
 			    jobCount++;
 			    if(jobCount < periodEventNum){
 			    	Random r = new Random(jobCount);
-			        
-				  //  jobDelay = (int)getRandomNumber(3000, 3000, random);	
-			    	/*jobDelay = 180000.00/periodEventNum;
-			    	send(getId(),jobDelay,CREATE_JOB);*/
-
-			    	
+			    	//It should be the difference between upload times, include delay = diff of upload times of this and next record
+			    	/*
 			    	jobDelay = testPeriod/periodEventNum;
 
-			    	
 			    	double val = r.nextGaussian()*(jobDelay/3);
 			    	double stdJobDelay = val + jobDelay;
-				    				    
-					send(getId(),stdJobDelay,CREATE_JOB);
+			    	System.out.println("stdJobDelay " + stdJobDelay);
+			    	*/
+			    	
+			    	
+		       	    String [] nextJob;
+		       	 long next_timeInMillis;
+		       	 double stdJobDelay = 0;
+		    	     try {
+		    			nextJob = lookahead.readNext();
+		    		} catch (IOException e) {
+		    			// TODO Auto-generated catch block
+		    			e.printStackTrace();
+		    			return;
+		    		} 
+		            	  //callables.add(new VideoStreams("" + videoId, inputdataFolderURL, startupqueue, estimatedGopLength, seedShift, brokerId, videoId, cloudlets));
+		    	     SimpleDateFormat df1 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+		    	     try{
+		    	    	 Date d = df1.parse(nextJob[0]);
+		    	    	next_timeInMillis = d.getTime();
+		    	    	 System.out.println("Time in ms for next = "+ next_timeInMillis);
+		    	    	 stdJobDelay = (next_timeInMillis - timeInMillis);    ///1000000;
+		    	    	 System.out.println("Std Dev in s = " + stdJobDelay);
+		    	     }
+		    	     catch(Exception e){
+		    	    	 System.out.println("Couldn't parse, chnage code!!!");
+		    	     }
+			    	
+			    	
+			    	
+					send(getId(),stdJobDelay,CREATE_JOB); //Not sure if the delay is in sec or ms; clarify this
 					
 					
 			    	
@@ -1628,8 +1607,7 @@ public class TranscodingMain {
 	
 			    }
 		     }   
-				//periodCount++;
-			    
+			   
 			    CloudSim.resumeSimulation();
 			
 	 
@@ -1643,11 +1621,12 @@ public class TranscodingMain {
 
 		private void dropVideo() {
 
+			/*
 			List<Integer> videoDropList = new ArrayList<Integer>();
 			double estdmr = 0.0;
 			try {
 				TranscodingProvisioner trp = new TranscodingProvisioner(broker, propertiesFileURL);
-			    estdmr = trp.getEstimatedDeadlineMissRate();
+			    //estdmr = trp.getEstimatedDeadlineMissRate();
 				
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -1656,7 +1635,7 @@ public class TranscodingMain {
 
 			//
 			for (int i = 0; i < broker.getCloudletList().size(); i++) {
-				VideoSegment vs = (VideoSegment) broker.getCloudletList().get(i);
+				Binary vs = (Binary) broker.getCloudletList().get(i);
 				if (vs.getOrderNum() == 0) {
 
 					Random random = new Random();
@@ -1685,7 +1664,7 @@ public class TranscodingMain {
 			}
 
 			for (int i = 0; i < broker.getCloudletList().size(); i++) {
-				VideoSegment vst = (VideoSegment) broker.getCloudletList().get(i);
+				Binary vst = (Binary) broker.getCloudletList().get(i);
 
 				if (videoDropList.contains(vst.getCloudletVideoId())) {
 
@@ -1708,7 +1687,7 @@ public class TranscodingMain {
 
 			if (broker.getCloudletList().size() > 0 || broker.generatePeriodicEvent) {
 				send(getId(), eventDelay, DROP_VIDEO);
-			}
+			}*/
 
 		}
 		
@@ -2609,11 +2588,11 @@ public class TranscodingMain {
 			this.vmList = vmList;
 		}
 
-		public List<VideoSegment> getCloudletList() {
+		public List<Binary> getCloudletList() {
 			return cloudletList;
 		}
 
-		protected void setCloudletList(List<VideoSegment> cloudletList) {
+		protected void setCloudletList(List<Binary> cloudletList) {
 			this.cloudletList = cloudletList;
 		}
 

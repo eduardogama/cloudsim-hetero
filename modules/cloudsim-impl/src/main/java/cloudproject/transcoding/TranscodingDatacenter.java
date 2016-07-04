@@ -72,7 +72,7 @@ public class TranscodingDatacenter extends Datacenter {
 			
 			EventData eventdata =(EventData) ev.getData();
 			// gets the Cloudlet object
-			VideoSegment cl = (VideoSegment) eventdata.getDataCloudlet();
+			Binary cl = (Binary) eventdata.getDataCloudlet();
 			totalCompletionTime_vmMap = eventdata.getDataTimeMap();
 			
 			//for debug
